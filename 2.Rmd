@@ -1,0 +1,106 @@
+---
+title: "hw3"
+author: "Sina Sanei"
+date: "November 14, 2018"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 2) 
+# a)
+same as question (1) let $X=(A_1,..., A_m)$  be the (unobserved) lifetimes associated
+with room A, and $S=167$ the number
+of litebulbs in the second experiment that are still on at
+time $\tau = 15$. Thus, the total observed data 
+combined is: 
+\[Y=(B_1,...,B_n,E_1,...,E_m) \] 
+where $E_i= 1$ if
+the bulb is still burning, and $E_i= 0$ if the light is out in room A. Hence $S=\sum_{i=1}^{m} E_i=254$.
+given $A_i,B_i\overset{iid}\sim Unif(\kappa)$ the joint likelihood function is : 
+\[L(\kappa) = \kappa^{-n} I_{[B_{max},\infty)} (\kappa) \times (\frac{\tau}{max(\tau,\kappa)})^{m-S}
+           (1-\frac{\tau}{max(\tau,\theta)})^S\]
+since $S\geq 1$ it implies that $\kappa > \tau$ , hance the likelihood is propotrional to(only terms with $\kappa$) : 
+\[H(\kappa)= \kappa^{(n+m)}(\kappa-\tau)^S \]
+which has a unique maximum in $\dot\kappa=\frac{n+m}{n+m-S}\tau$ and is monotonically decreasing for $\kappa>\dot\kappa$. Then the likelihood function takes its maximum at $\dot\kappa$ if $\dot\kappa>B_{max}$ and 
+at $B_{max}$ if $\dot\kappa<B_{max}$
+summarizing above results maximum likelihood estimate is obtained by: 
+\[\hat\kappa= \begin{cases}
+    \dot\kappa       & \quad \text{if } \dot\kappa> B_{max}  \& S>1 \\
+     B_{max}  & \quad \text{otherwise}
+  \end{cases}\]
+We should notice the EM algorithm is not applicable
+because the log-likelihood function does not exist for all
+$\kappa>0$, which means that its expected value is not defined.
+To see this, assume that one bulb has survived time $\tau$,
+and let $A_m$, be its (unobserved) lifetime. The unconditional
+pdf of X is: 
+\[f_A(A_m;\kappa)= \begin{cases}
+    1/\kappa       & \quad \text{if } 0\leq A_m\leq \kappa \\
+     0 & \quad \text{otherwise}
+  \end{cases}\]
+In the jth E-step we need to find $l^{(j)}(\kappa)=E_{[X|Y,\kappa^{j-1}]}[l_c(\kappa;Y,X)]$, Conditionally on $A_m|Y$, which means conditionally on $A_m > \tau$, and using $\kappa^{(j-1)}$ as the parameter,
+$A_m$ , follows a uniform distribution in $[\tau,\kappa^{(j-1)}]$. Now, for
+all $\kappa < \kappa^{(j-1)}, f ( A_m ; \kappa )$ takes value zero with positive probability, and hence $l^{(j)}(\kappa)$ does not exist for $\kappa < \kappa^{(j)}$. 
+
+```{r data }
+lifes_B2 = c(36.89715,10.36392,53.44518,50.27952,52.84704,40.52668,
+             20.74,43.73698,0.6243725,52.65729,55.64996,20.01472,
+             41.86756,44.40291,39.5281,26.6462,27.70065,17.25094,
+             38.92069,46.07643,24.34419,28.82503,37.12861,8.017329,19.29129)
+```
+
+```{r em }
+m=400
+n=25
+S=167 # number of survived lamps in A up to tau=15
+tau= 15
+
+kappa_dot= tau*(n+m)/(n+m-S)
+kappa_mle=NULL
+#MLE estimate for kappa: 
+if(kappa_dot> max(lifes_B2)) { kappa_mle=kappa_dot
+     } else { kappa_mle= max(lifes_B2)}
+cat("MLE estimate for kappa=", kappa_mle)
+```
+#b)
+to estimate the standard error I used the parametric bootstrap : 
+```{r bs2 }
+set.seed(501)
+
+kappa_seq=NULL
+for(j in 1:1000){
+  bs2_sample=runif(n,min=0, max=kappa_mle)
+  S = length(which(runif(m,min = 0, max =kappa_mle) >= tau))
+  if(kappa_dot> max(bs2_sample)) { kappa_seq[j]=kappa_dot
+     } else { kappa_seq[j]= max(bs2_sample)}
+} 
+
+hist(kappa_seq,breaks = "scott",xlab = bquote(kappa),main="")
+cat("standard error of kappa =" , sd(kappa_seq))
+cat("95% CI = " ,"(",kappa_mle-qnorm(0.975)*sd(kappa_seq), ",", 
+    kappa_mle+qnorm(0.975)*sd(kappa_seq), ")")
+```
+
+#c)
+if we use only observtions from room B(complete data) we will have: 
+\[\hat\kappa_{mle}=max(B_1,...,B_n)\]
+```{r cml}
+kappa_mle_c=max(lifes_B2)
+set.seed(501)
+## parametric bootstrap 
+kappa_seq_c=NULL
+for(k in 1:1000){
+  bs2_sample_2=runif(n,min=0, max=kappa_mle_c)
+  kappa_seq_c[k]= max(bs2_sample_2)
+} 
+
+hist(kappa_seq_c,breaks = "scott",xlab = bquote(kappa),main="")
+cat("standard error of kappa =" , sd(kappa_seq_c))
+cat("95% CI = " ,"(",kappa_mle-qnorm(0.975)*sd(kappa_seq_c), ",", 
+    kappa_mle+qnorm(0.975)*sd(kappa_seq_c), ")")
+```
+
+point estimates are equal for both part (a) and (b). the confidence intervals are slightly tighter in part (b). wihch implies that if the distributions are assumed to be uniform the observation from room A does not give us much more information regarding the parameter of interest. 
